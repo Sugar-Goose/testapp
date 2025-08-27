@@ -1,24 +1,56 @@
-# sa-investor-cabinet
+# Savage Investor Cabinet
 
-## Project setup
+Vue.js приложение для инвесторов с красивым дизайном и 3D фоном.
+
+## Установка и запуск
+
+1. **Установите зависимости:**
+   ```bash
+   npm install
+   ```
+
+2. **Запустите проект:**
+   ```bash
+   npm run serve
+   ```
+
+3. **Откройте браузер:**
+   Перейдите на `http://localhost:8080`
+
+## Компоненты
+
+- **AuthPage** - главная страница аутентификации
+- **AuthForm** - форма логина/регистрации
+- **TwoFactorAuth** - двухфакторная аутентификация
+- **SplineComp** - 3D фон из Spline
+
+## Технологии
+
+- Vue.js 3
+- Spline 3D
+- Font Awesome Icons
+- CSS3 с адаптивным дизайном
+
+## Структура проекта
+
 ```
-npm install
+src/
+├── components/
+│   ├── AuthPage.vue      # Главная страница
+│   ├── AuthForm.vue      # Форма аутентификации
+│   ├── TwoFactorAuth.vue # 2FA компонент
+│   ├── InputField.vue    # Поле ввода
+│   ├── ProgressIndicator.vue # Индикатор прогресса
+│   ├── MethodToggle.vue  # Переключатель методов
+│   └── SplineComp.vue    # 3D фон
+└── App.vue               # Корневой компонент
 ```
 
-### Compiles and hot-reloads for development
-```
-npm run serve
-```
+## Особенности
 
-### Compiles and minifies for production
-```
-npm run build
-```
-
-### Lints and fixes files
-```
-npm run lint
-```
-
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+- ✅ Темная тема
+- ✅ Адаптивный дизайн
+- ✅ Валидация форм
+- ✅ 3D фон из Spline
+- ✅ Двухфакторная аутентификация
+- ✅ Переключение между логином и регистрацией
