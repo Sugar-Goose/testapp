@@ -1,6 +1,6 @@
 // API библиотека для работы с аутентификацией
 // Базовый URL API (замените на ваш реальный URL)
-const API_BASE_URL = 'https://api.ic.savagealphas.com/api/'; // Измените на ваш URL
+const API_BASE_URL = 'https://api.ic.savagealphas.com/api'; // Измените на ваш URL
 
 /**
  * Универсальная функция для выполнения HTTP запросов
