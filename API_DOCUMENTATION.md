@@ -86,6 +86,7 @@ const result = await makeAuthenticatedRequest('/protected-endpoint', {
   <form @submit.prevent="handleRegister">
     <input v-model="email" type="email" placeholder="Email" required>
     <input v-model="password" type="password" placeholder="Password" required>
+    <input v-model="twoFactorCode" type="text" placeholder="2FA Code" required>
     <button type="submit">Зарегистрироваться</button>
   </form>
 </template>
@@ -97,13 +98,14 @@ export default {
   data() {
     return {
       email: '',
-      password: ''
+      password: '',
+      twoFactorCode: ''
     }
   },
   methods: {
     async handleRegister() {
       try {
-        const result = await registerUser(this.email, this.password);
+        const result = await registerUser(this.email, this.password, this.twoFactorCode);
         console.log('Регистрация успешна:', result);
         // Перенаправление или другие действия
       } catch (error) {

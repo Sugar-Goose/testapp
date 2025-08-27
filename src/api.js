@@ -1,6 +1,6 @@
 // API библиотека для работы с аутентификацией
 // Базовый URL API (замените на ваш реальный URL)
-const API_BASE_URL = 'https://api.ic.savagealphas.com/api'; // Измените на ваш URL
+const API_BASE_URL = 'https://api.ic.savagealphas.com/api/'; // Измените на ваш URL
 
 /**
  * Универсальная функция для выполнения HTTP запросов
@@ -9,7 +9,8 @@ const API_BASE_URL = 'https://api.ic.savagealphas.com/api'; // Измените 
  * @returns {Promise} - промис с результатом запроса
  */
 async function makeRequest(endpoint, options = {}) {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+    const url = `${API_BASE_URL}${cleanEndpoint}`;
     
     const defaultOptions = {
         headers: {
@@ -27,25 +28,25 @@ async function makeRequest(endpoint, options = {}) {
     };
 
     try {
+
         const response = await fetch(url, requestOptions);
-        
+
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error('Response error:', errorText);
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
         
-        return await response.json();
+        const data = await response.json();
+        console.log('Response data:', data);
+        return data;
     } catch (error) {
         console.error('API request failed:', error);
         throw error;
     }
 }
 
-/**
- * Регистрация нового пользователя
- * @param {string} email - email пользователя
- * @param {string} password - пароль пользователя
- * @returns {Promise} - промис с результатом регистрации
- */
+
 export async function registerUser(email, password) {
     return makeRequest('/auth/register', {
         method: 'POST',
