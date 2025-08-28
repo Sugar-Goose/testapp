@@ -12,9 +12,10 @@
 
     <div v-if="!isLogin" class="qr-section">
       <div class="qr-container">
-        <div class="qr-placeholder">
+        <img v-if="qrCode" :src="qrCode" alt="QR Code" class="qr-image" />
+        <div v-else class="qr-placeholder">
           <i class="fas fa-qrcode"></i>
-          <span>QR Code Placeholder</span>
+          <span>QR Code Loading...</span>
         </div>
       </div>
     </div>
@@ -22,12 +23,7 @@
     <div v-if="!isLogin" class="manual-code-section">
       <p class="manual-text">Can't scan? Enter this code manually:</p>
       <div class="code-container">
-        <input 
-          type="text" 
-          :value="secretCode" 
-          readonly 
-          class="secret-code-input"
-        />
+        <input type="text" :value="secretCode" readonly class="secret-code-input" />
         <button @click="copyCode" class="copy-button">
           <i class="fas fa-copy"></i>
         </button>
@@ -37,34 +33,20 @@
     <div class="verification-section">
       <h3 class="verification-title">Verification Code</h3>
       <p class="verification-subtitle">Enter the 6-digit code</p>
-      
+
       <div class="code-inputs">
-        <input
-          v-for="(digit, index) in 6"
-          :key="index"
-          type="text"
-          maxlength="1"
-          class="code-digit"
-          :class="{ 'active': activeDigit === index }"
-          v-model="verificationCode[index]"
-          @input="handleCodeInput($event, index)"
-          @focus="activeDigit = index"
-          @keydown="handleKeydown($event, index)"
-          ref="codeInputs"
-        />
+        <input v-for="(digit, index) in 6" :key="index" type="text" maxlength="1" class="code-digit"
+          :class="{ 'active': activeDigit === index }" v-model="verificationCode[index]"
+          @input="handleCodeInput($event, index)" @focus="activeDigit = index" @keydown="handleKeydown($event, index)"
+          ref="codeInputs" />
       </div>
     </div>
 
     <div class="authenticator-apps">
       <h4 class="apps-title">Recommended Authenticator Apps</h4>
       <div class="apps-grid">
-        <div 
-          v-for="app in authenticatorApps" 
-          :key="app.name"
-          class="app-option"
-          :class="{ 'selected': selectedApp === app.name }"
-          @click="selectedApp = app.name"
-        >
+        <div v-for="app in authenticatorApps" :key="app.name" class="app-option"
+          :class="{ 'selected': selectedApp === app.name }" @click="selectedApp = app.name">
           <div class="app-radio">
             <div class="radio-circle"></div>
           </div>
@@ -77,11 +59,7 @@
       <button @click="$emit('cancel')" class="cancel-button">
         Cancel
       </button>
-      <button 
-        @click="verifyCode" 
-        class="verify-button"
-        :disabled="!isCodeComplete"
-      >
+      <button @click="verifyCode" class="verify-button" :disabled="!isCodeComplete">
         Verify & Continue
       </button>
     </div>
@@ -95,6 +73,14 @@ export default {
     secretCode: {
       type: String,
       default: 'T7AL C2KD ONB5 TWL2 WHPM GNUQ 65UZ WKJB'
+    },
+    qrCode: {
+      type: String,
+      default: ''
+    },
+    otpauthUrl: {
+      type: String,
+      default: ''
     },
     isLogin: {
       type: Boolean,
@@ -120,6 +106,14 @@ export default {
       return this.verificationCode.every(digit => digit !== '')
     }
   },
+  mounted() {
+    console.log('TwoFactorAuth mounted with props:', {
+      secretCode: this.secretCode,
+      qrCode: this.qrCode ? 'QR Code received' : 'No QR Code',
+      otpauthUrl: this.otpauthUrl ? 'otpauth URL received' : 'No otpauth URL',
+      isLogin: this.isLogin
+    })
+  },
   methods: {
     handleCodeInput(event, index) {
       const value = event.target.value
@@ -143,7 +137,6 @@ export default {
     },
     copyCode() {
       navigator.clipboard.writeText(this.secretCode)
-      // Можно добавить уведомление об успешном копировании
     },
     verifyCode() {
       const code = this.verificationCode.join('')
@@ -222,6 +215,13 @@ export default {
 .qr-placeholder span {
   color: #8b8b9f;
   font-size: 12px;
+}
+
+.qr-image {
+  width: 200px;
+  height: 200px;
+  border-radius: 12px;
+  border: 2px solid #2d2d44;
 }
 
 .manual-code-section {
@@ -424,23 +424,22 @@ export default {
   cursor: not-allowed;
 }
 
-/* Медиа запросы */
 @media (max-width: 768px) {
   .qr-placeholder {
     width: 160px;
     height: 160px;
   }
-  
+
   .qr-placeholder i {
     font-size: 36px;
   }
-  
+
   .code-digit {
     width: 44px;
     height: 44px;
     font-size: 16px;
   }
-  
+
   .apps-grid {
     grid-template-columns: 1fr;
   }
@@ -450,26 +449,26 @@ export default {
   .header-title {
     font-size: 20px;
   }
-  
+
   .qr-placeholder {
     width: 140px;
     height: 140px;
   }
-  
+
   .qr-placeholder i {
     font-size: 32px;
   }
-  
+
   .code-digit {
     width: 40px;
     height: 40px;
     font-size: 14px;
   }
-  
+
   .action-buttons {
     flex-direction: column;
   }
-  
+
   .cancel-button,
   .verify-button {
     padding: 12px 20px;

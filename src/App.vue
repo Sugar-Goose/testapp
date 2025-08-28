@@ -1,34 +1,56 @@
 <template>
   <div id="app">
     <AppPreloader v-if="showPreloader" @preloader-complete="hidePreloader" />
-    <AuthPage v-show="!showPreloader" />
+    <AuthPage v-show="!showPreloader && !isAuthenticated" @auth-success="handleAuthSuccess" />
+    <MainApp v-show="!showPreloader && isAuthenticated" @logout="handleLogout" />
   </div>
 </template>
 
 <script>
 import AuthPage from './components/AuthPage.vue'
 import AppPreloader from './components/Preloader.vue'
+import MainApp from './components/MainApp.vue'
+import { getAuthToken } from './services/api.js'
 
 export default {
   name: 'App',
   components: {
     AuthPage,
-    AppPreloader
+    AppPreloader,
+    MainApp
   },
   data() {
     return {
-      showPreloader: true
+      showPreloader: true,
+      isAuthenticated: false
     }
   },
+      async mounted() {
+      await this.checkAuthentication()
+    },
   methods: {
     hidePreloader() {
       this.showPreloader = false
+    },
+    async checkAuthentication() {
+      const token = getAuthToken()
+      this.isAuthenticated = !!token
+      console.log(this.isAuthenticated ? 'Авторизован' : 'Не авторизован')
+    },
+    handleLogout() {
+      this.isAuthenticated = false
+      console.log('Выход')
+    },
+    handleAuthSuccess() {
+      this.isAuthenticated = true
     }
   }
 }
 </script>
 
 <style>
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
+
 * {
   margin: 0;
   padding: 0;
@@ -58,7 +80,6 @@ html {
   overflow: hidden;
 }
 
-/* Анимация появления основного контента */
 .auth-page {
   animation: fadeInUp 0.8s ease-out;
 }
@@ -74,10 +95,6 @@ html {
   }
 }
 
-/* Font Awesome Icons */
-@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css');
-
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -95,13 +112,11 @@ html {
   background: #3d3d54;
 }
 
-/* Focus styles */
 *:focus {
   outline: 2px solid #6E5CF7;
   outline-offset: 2px;
 }
 
-/* Selection */
 ::selection {
   background: rgba(110, 92, 247, 0.3);
   color: #ffffff;

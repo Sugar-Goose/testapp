@@ -1,17 +1,9 @@
-// API библиотека для работы с аутентификацией
-// Базовый URL API (замените на ваш реальный URL)
-const API_BASE_URL = 'https://api.ic.savagealphas.com/api/'; // Измените на ваш URL
+const API_BASE_URL = 'https://api.ic.savagealphas.com/';
 
-/**
- * Универсальная функция для выполнения HTTP запросов
- * @param {string} endpoint - эндпоинт API
- * @param {Object} options - опции запроса
- * @returns {Promise} - промис с результатом запроса
- */
 async function makeRequest(endpoint, options = {}) {
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
     const url = `${API_BASE_URL}${cleanEndpoint}`;
-    
+
     const defaultOptions = {
         headers: {
             'Content-Type': 'application/json',
@@ -28,7 +20,6 @@ async function makeRequest(endpoint, options = {}) {
     };
 
     try {
-
         const response = await fetch(url, requestOptions);
 
         if (!response.ok) {
@@ -36,7 +27,7 @@ async function makeRequest(endpoint, options = {}) {
             console.error('Response error:', errorText);
             throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
-        
+
         const data = await response.json();
         console.log('Response data:', data);
         return data;
@@ -45,7 +36,6 @@ async function makeRequest(endpoint, options = {}) {
         throw error;
     }
 }
-
 
 export async function registerUser(email, password) {
     return makeRequest('/auth/register', {
@@ -57,23 +47,14 @@ export async function registerUser(email, password) {
     });
 }
 
-/**
- * Настройка двухфакторной аутентификации
- * @returns {Promise} - промис с результатом настройки 2FA
- */
 export async function setupTwoFactorAuth() {
-    return makeRequest('/auth/2fa/setup', {
+    return makeAuthenticatedRequest('/auth/2fa/setup', {
         method: 'POST'
     });
 }
 
-/**
- * Верификация двухфакторной аутентификации
- * @param {string} token - токен 2FA
- * @returns {Promise} - промис с результатом верификации
- */
 export async function verifyTwoFactorAuth(token) {
-    return makeRequest('/auth/2fa/verify', {
+    return makeAuthenticatedRequest('/auth/2fa/verify', {
         method: 'POST',
         body: JSON.stringify({
             token
@@ -81,13 +62,6 @@ export async function verifyTwoFactorAuth(token) {
     });
 }
 
-/**
- * Вход пользователя в систему
- * @param {string} email - email пользователя
- * @param {string} password - пароль пользователя
- * @param {string} twoFactorCode - код двухфакторной аутентификации
- * @returns {Promise} - промис с результатом входа
- */
 export async function loginUser(email, password, twoFactorCode) {
     return makeRequest('/auth/login', {
         method: 'POST',
@@ -99,10 +73,6 @@ export async function loginUser(email, password, twoFactorCode) {
     });
 }
 
-/**
- * Установка токена аутентификации в заголовки
- * @param {string} token - JWT токен
- */
 export function setAuthToken(token) {
     if (token) {
         localStorage.setItem('authToken', token);
@@ -111,23 +81,29 @@ export function setAuthToken(token) {
     }
 }
 
-/**
- * Получение токена аутентификации
- * @returns {string|null} - токен или null
- */
+export function setUserCredentials(email, password) {
+    if (email && password) {
+        localStorage.setItem('userEmail', email);
+        localStorage.setItem('userPassword', password);
+    } else {
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('userPassword');
+    }
+}
+
+export function getUserCredentials() {
+    const email = localStorage.getItem('userEmail');
+    const password = localStorage.getItem('userPassword');
+    return { email, password };
+}
+
 export function getAuthToken() {
     return localStorage.getItem('authToken');
 }
 
-/**
- * Создание запроса с авторизацией
- * @param {string} endpoint - эндпоинт API
- * @param {Object} options - опции запроса
- * @returns {Promise} - промис с результатом запроса
- */
 export async function makeAuthenticatedRequest(endpoint, options = {}) {
     const token = getAuthToken();
-    
+
     if (!token) {
         throw new Error('No authentication token found');
     }
@@ -143,7 +119,34 @@ export async function makeAuthenticatedRequest(endpoint, options = {}) {
     return makeRequest(endpoint, authOptions);
 }
 
-// Экспорт всех функций
+export async function validateToken(email, password, twoFactorCode) {
+    try {
+        const result = await loginUser(email, password, twoFactorCode);
+
+        if (result.token || result.accessToken || result.access_token) {
+            const newToken = result.token || result.accessToken || result.access_token;
+            setAuthToken(newToken);
+            console.log('Токен обновлен:', newToken);
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Token validation failed:', error);
+        throw error;
+    }
+}
+
+export async function validateTokenStored() {
+    const token = getAuthToken();
+    if (token) {
+        console.log('Токен найден в localStorage:', token.substring(0, 20) + '...');
+        return true;
+    } else {
+        console.log('Токен не найден в localStorage');
+        return false;
+    }
+}
+
 export default {
     registerUser,
     setupTwoFactorAuth,
@@ -151,5 +154,9 @@ export default {
     loginUser,
     setAuthToken,
     getAuthToken,
-    makeAuthenticatedRequest
+    setUserCredentials,
+    getUserCredentials,
+    makeAuthenticatedRequest,
+    validateToken,
+    validateTokenStored
 };

@@ -1,12 +1,7 @@
 <template>
   <div class="method-toggle">
-    <div 
-      v-for="method in methods" 
-      :key="method.value"
-      class="method-option"
-      :class="{ 'active': selectedMethod === method.value }"
-      @click="$emit('update:modelValue', method.value)"
-    >
+    <div v-for="method in methods" :key="method.value" class="method-option"
+      :class="{ 'active': selectedMethod === method.value }" @click="$emit('update:modelValue', method.value)">
       <div class="method-icon">
         <i :class="method.icon"></i>
       </div>
@@ -87,22 +82,22 @@ export default {
   font-weight: 500;
 }
 
-/* Медиа запросы */
+
 @media (max-width: 768px) {
   .method-toggle {
     border-radius: 10px;
     padding: 3px;
   }
-  
+
   .method-option {
     padding: 10px 12px;
     gap: 6px;
   }
-  
+
   .method-icon i {
     font-size: 14px;
   }
-  
+
   .method-label {
     font-size: 13px;
   }
@@ -113,11 +108,11 @@ export default {
     padding: 8px 10px;
     gap: 4px;
   }
-  
+
   .method-icon i {
     font-size: 13px;
   }
-  
+
   .method-label {
     font-size: 12px;
   }

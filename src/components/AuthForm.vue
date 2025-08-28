@@ -12,55 +12,27 @@
 
     <ProgressIndicator :steps="progressSteps" />
 
-    <MethodToggle 
-      v-model="selectedMethod" 
-      :methods="authMethods"
-    />
+    <MethodToggle v-model="selectedMethod" :methods="authMethods" />
 
     <form @submit.prevent="handleSubmit" class="form-content">
-      <InputField
-        v-model="formData.email"
-        label="Email Address"
-        id="email"
-        type="email"
-        placeholder="investor@example.com"
-        icon="fas fa-envelope"
-        :has-error="errors.email"
-        :error-message="errors.email"
-      />
+      <InputField v-model="formData.email" label="Email Address" id="email" type="email"
+        placeholder="investor@example.com" icon="fas fa-envelope" :has-error="!!errors.email"
+        :error-message="errors.email" @blur="onFieldBlur('email')" />
 
-      <InputField
-        v-model="formData.password"
-        label="Password"
-        id="password"
-        type="password"
-        placeholder="••••••••"
-        icon="fas fa-lock"
-        :action-icon="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"
-        :has-error="errors.password"
-        :error-message="errors.password"
-        :show-password="showPassword"
-        @action="togglePasswordVisibility"
-      />
+      <InputField v-model="formData.password" label="Password" id="password" type="password" placeholder="••••••••"
+        icon="fas fa-lock" :action-icon="showPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"
+        :has-error="!!errors.password" :error-message="errors.password" :show-password="showPassword"
+        @action="togglePasswordVisibility" @blur="onFieldBlur('password')" />
 
-      <InputField
-        v-if="!isLogin"
-        v-model="formData.confirmPassword"
-        label="Confirm password"
-        id="confirmPassword"
-        type="password"
-        placeholder="••••••••"
-        icon="fas fa-lock"
-        :action-icon="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'"
-        :has-error="errors.confirmPassword"
-        :error-message="errors.confirmPassword"
-        :show-password="showConfirmPassword"
-        @action="toggleConfirmPasswordVisibility"
-      />
+      <InputField v-if="!isLogin" v-model="formData.confirmPassword" label="Confirm password" id="confirmPassword"
+        type="password" placeholder="••••••••" icon="fas fa-lock"
+        :action-icon="showConfirmPassword ? 'fas fa-eye-slash' : 'fas fa-eye'" :has-error="!!errors.confirmPassword"
+        :error-message="errors.confirmPassword" :show-password="showConfirmPassword"
+        @action="toggleConfirmPasswordVisibility" @blur="onFieldBlur('confirmPassword')" />
 
       <div class="form-actions">
         <a v-if="isLogin" href="#" class="forgot-password">Forgot password?</a>
-        
+
         <button type="submit" class="submit-button" :disabled="!isFormValid">
           {{ isLogin ? 'Continue' : 'Sign up' }}
         </button>
@@ -74,7 +46,7 @@
           {{ isLogin ? 'Sign up' : 'Sign in' }}
         </a>
       </p>
-      
+
       <div v-if="isLogin" class="security-info">
         <i class="fas fa-check"></i>
         <span>Secure 2FA verification</span>
@@ -111,12 +83,17 @@ export default {
         confirmPassword: ''
       },
       errors: {
-        email: '',
-        password: '',
-        confirmPassword: ''
+        email: null,
+        password: null,
+        confirmPassword: null
       },
       showPassword: false,
-      showConfirmPassword: false
+      showConfirmPassword: false,
+      touched: {
+        email: false,
+        password: false,
+        confirmPassword: false
+      }
     }
   },
   computed: {
@@ -141,41 +118,30 @@ export default {
     },
     isFormValid() {
       if (this.isLogin) {
-        return this.formData.email && this.formData.password && !this.errors.email && !this.errors.password
+        return this.formData.email && this.formData.password && !this.errors.email
       } else {
-        return this.formData.email && this.formData.password && this.formData.confirmPassword && 
-               !this.errors.email && !this.errors.password && !this.errors.confirmPassword
+        return this.formData.email && this.formData.password && this.formData.confirmPassword &&
+          !this.errors.email && !this.errors.password && !this.errors.confirmPassword
       }
     }
   },
-  watch: {
-    'formData.email'() {
-      this.validateEmail()
-    },
-    'formData.password'() {
-      this.validatePassword()
-      if (!this.isLogin) {
-        this.validateConfirmPassword()
-      }
-    },
-    'formData.confirmPassword'() {
-      if (!this.isLogin) {
-        this.validateConfirmPassword()
-      }
-    }
-  },
+  watch: {},
   methods: {
     validateEmail() {
+      if (!this.touched.email) return
+
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!this.formData.email) {
         this.errors.email = 'Email is required'
       } else if (!emailRegex.test(this.formData.email)) {
         this.errors.email = 'Please enter a valid email address'
       } else {
-        this.errors.email = ''
+        this.errors.email = null
       }
     },
     validatePassword() {
+      if (!this.touched.password) return
+
       if (!this.formData.password) {
         this.errors.password = 'Password is required'
       } else if (this.formData.password.length < 8) {
@@ -183,17 +149,23 @@ export default {
       } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(this.formData.password)) {
         this.errors.password = 'Password must contain uppercase, lowercase and number'
       } else {
-        this.errors.password = ''
+        this.errors.password = null
       }
     },
     validateConfirmPassword() {
+      if (!this.touched.confirmPassword) return
+
       if (!this.formData.confirmPassword) {
         this.errors.confirmPassword = 'Please confirm your password'
       } else if (this.formData.password !== this.formData.confirmPassword) {
         this.errors.confirmPassword = 'Passwords do not match'
       } else {
-        this.errors.confirmPassword = ''
+        this.errors.confirmPassword = null
       }
+    },
+    onFieldBlur(field) {
+      this.touched[field] = true
+      this[`validate${field.charAt(0).toUpperCase() + field.slice(1)}`]()
     },
     togglePasswordVisibility() {
       this.showPassword = !this.showPassword
@@ -337,21 +309,21 @@ export default {
   font-size: 14px;
 }
 
-/* Медиа запросы */
+
 @media (max-width: 768px) {
   .header-title {
     font-size: 24px;
   }
-  
+
   .header-icon {
     width: 44px;
     height: 44px;
   }
-  
+
   .header-icon i {
     font-size: 18px;
   }
-  
+
   .submit-button {
     padding: 14px 20px;
     font-size: 15px;
@@ -362,21 +334,21 @@ export default {
   .header-title {
     font-size: 20px;
   }
-  
+
   .header-icon {
     width: 40px;
     height: 40px;
   }
-  
+
   .header-icon i {
     font-size: 16px;
   }
-  
+
   .submit-button {
     padding: 12px 16px;
     font-size: 14px;
   }
-  
+
   .footer-text {
     font-size: 13px;
   }

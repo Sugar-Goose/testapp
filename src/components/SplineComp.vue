@@ -27,17 +27,15 @@ export default {
     async loadSpline() {
       try {
         const { Application } = await import('@splinetool/runtime')
-        
         this.splineApp = new Application(this.$refs.canvas3d)
         await this.splineApp.load('https://prod.spline.design/OatdoeXjoZYAXB3G/scene.splinecode')
-        
+
         console.log('Spline scene loaded successfully!')
       } catch (error) {
         console.error('Failed to load Spline:', error)
       }
     },
     setupMouseTracking() {
-      // Добавляем обработчики событий мыши на весь документ
       document.addEventListener('mousemove', this.handleMouseMove)
       document.addEventListener('mouseenter', this.handleMouseEnter)
       document.addEventListener('mouseleave', this.handleMouseLeave)
@@ -49,23 +47,19 @@ export default {
     },
     handleMouseMove(event) {
       if (this.splineApp) {
-        // Передаем координаты мыши в Spline
         const rect = this.$refs.canvas3d.getBoundingClientRect()
         const x = event.clientX - rect.left
         const y = event.clientY - rect.top
-        
-        // Нормализуем координаты (0-1)
+
         const normalizedX = x / rect.width
         const normalizedY = y / rect.height
-        
-        // Отправляем события в Spline (если есть соответствующие методы)
+
         try {
-          // Попытка вызвать методы Spline для обработки мыши
           if (this.splineApp.events && this.splineApp.events.emit) {
             this.splineApp.events.emit('mouseMove', { x: normalizedX, y: normalizedY })
           }
         } catch (error) {
-          // Игнорируем ошибки, если методы не существуют
+          console.warn('Spline mouse move event failed:', error)
         }
       }
     },
@@ -76,7 +70,7 @@ export default {
             this.splineApp.events.emit('mouseEnter')
           }
         } catch (error) {
-          // Игнорируем ошибки
+          console.warn('Spline mouse enter event failed:', error)
         }
       }
     },
@@ -87,7 +81,7 @@ export default {
             this.splineApp.events.emit('mouseLeave')
           }
         } catch (error) {
-          // Игнорируем ошибки
+          console.warn('Spline mouse leave event failed:', error)
         }
       }
     }

@@ -1,9 +1,7 @@
 <template>
   <div class="auth-page">
-    <!-- 3D Background from Spline -->
     <SplineComp />
 
-    <!-- Logo -->
     <div class="logo">
       <div class="logo-icon">
         <i class="fas fa-chart-line"></i>
@@ -11,45 +9,31 @@
       <span class="logo-text">Savage Investor</span>
     </div>
 
-    <!-- Auth Container -->
     <div class="auth-container">
       <div class="auth-card">
-        <!-- Error Message -->
         <div v-if="errorMessage" class="error-message">
           <i class="fas fa-exclamation-triangle"></i>
           <span>{{ errorMessage }}</span>
         </div>
-        
-        <!-- Loading Overlay -->
+
         <div v-if="isLoading" class="loading-overlay">
           <div class="loading-spinner">
             <i class="fas fa-spinner fa-spin"></i>
           </div>
         </div>
-        
-        <AuthForm 
-          v-if="!showTwoFactor && !showSuccess"
-          :is-login="isLogin"
-          @submit="handleAuthSubmit"
-          @mode-change="toggleAuthMode"
-        />
-        
-        <TwoFactorAuth
-          v-else-if="showTwoFactor && !showSuccess"
-          :secret-code="twoFactorSecret"
-          :is-login="isLogin"
-          @verify="handleTwoFactorVerify"
-          @cancel="showTwoFactor = false"
-        />
-        
-        <AuthSuccess
-          v-else-if="showSuccess"
-          :user-email="formData.email"
-          @logout="handleLogout"
-        />
+
+        <AuthForm v-if="!showTwoFactor && !showSuccess" :is-login="isLogin" @submit="handleAuthSubmit"
+          @mode-change="toggleAuthMode" />
+
+        <TwoFactorAuth v-else-if="showTwoFactor && !showSuccess" :secret-code="twoFactorSecret"
+          :qr-code="twoFactorQrCode" :otpauth-url="twoFactorOtpauthUrl" :is-login="isLogin"
+          @verify="handleTwoFactorVerify" @cancel="showTwoFactor = false" />
+
+        <AuthSuccess v-else-if="showSuccess" :user-email="formData.email" @logout="handleLogout"
+          @auth-success="$emit('auth-success')" />
       </div>
     </div>
-    
+
 
   </div>
 </template>
@@ -59,14 +43,17 @@ import AuthForm from './AuthForm.vue'
 import TwoFactorAuth from './TwoFactorAuth.vue'
 import AuthSuccess from './AuthSuccess.vue'
 import SplineComp from './SplineComp.vue'
-import { 
-  registerUser, 
-  setupTwoFactorAuth, 
-  verifyTwoFactorAuth, 
+import {
+  registerUser,
+  setupTwoFactorAuth,
+  verifyTwoFactorAuth,
   loginUser,
   setAuthToken,
-  getAuthToken 
-} from '../api.js'
+  getAuthToken,
+  setUserCredentials,
+  getUserCredentials,
+  validateToken
+} from '../services/api.js'
 
 export default {
   name: 'AuthPage',
@@ -82,21 +69,14 @@ export default {
       showTwoFactor: false,
       showSuccess: false,
       twoFactorSecret: '',
+      twoFactorQrCode: '',
+      twoFactorOtpauthUrl: '',
       isLoading: false,
       errorMessage: '',
       formData: {
         email: '',
         password: ''
       }
-    }
-  },
-  mounted() {
-    // Проверяем, есть ли уже сохраненный токен
-    const token = getAuthToken()
-    if (token) {
-      console.log('Найден сохраненный токен аутентификации')
-      // Здесь можно добавить проверку валидности токена
-      // и автоматический вход пользователя
     }
   },
   methods: {
@@ -109,29 +89,55 @@ export default {
       try {
         this.isLoading = true
         this.errorMessage = ''
-        
-        // Сохраняем данные формы для использования в 2FA
+
+
         this.formData = { ...authData.data }
-        
+
         if (this.isLogin) {
-          // Для входа показываем 2FA сразу (пользователь введет код)
           this.showTwoFactor = true
         } else {
-          // Для регистрации сначала регистрируем пользователя
           const registerResult = await registerUser(
-            authData.data.email, 
+            authData.data.email,
             authData.data.password
           )
           console.log('Регистрация успешна:', registerResult)
-          
-          // Затем настраиваем 2FA
+          console.log('Тип ответа:', typeof registerResult)
+          console.log('Ключи ответа:', Object.keys(registerResult))
+
+          console.log('Выполняем вход после регистрации...')
+          const loginResult = await loginUser(
+            authData.data.email,
+            authData.data.password,
+            '000000' // Временный код 2FA для первого входа
+          )
+          console.log('Вход после регистрации:', loginResult)
+
+          if (loginResult.token) {
+            setAuthToken(loginResult.token)
+            setUserCredentials(authData.data.email, authData.data.password)
+            console.log('Токен сохранен после входа:', loginResult.token)
+          } else if (loginResult.accessToken) {
+            setAuthToken(loginResult.accessToken)
+            setUserCredentials(authData.data.email, authData.data.password)
+            console.log('Access token сохранен после входа:', loginResult.accessToken)
+          } else if (loginResult.access_token) {
+            setAuthToken(loginResult.access_token)
+            setUserCredentials(authData.data.email, authData.data.password)
+            console.log('Access token сохранен после входа:', loginResult.access_token)
+          } else {
+            console.log('Токен не найден в ответе входа:', loginResult)
+          }
+
+          const currentToken = getAuthToken()
+          console.log('Текущий токен перед 2FA:', currentToken)
+
           const twoFactorResult = await setupTwoFactorAuth()
           console.log('2FA настройка:', twoFactorResult)
-          
-          // Сохраняем секретный код для отображения QR
+
           this.twoFactorSecret = twoFactorResult.secret || 'T7AL C2KD ONB5 TWL2 WHPM GNUQ 65UZ WKJB'
-          
-          // Переключаемся на 2FA
+          this.twoFactorQrCode = twoFactorResult.qrCode || ''
+          this.twoFactorOtpauthUrl = twoFactorResult.otpauthUrl || ''
+
           this.showTwoFactor = true
         }
       } catch (error) {
@@ -145,36 +151,44 @@ export default {
       try {
         this.isLoading = true
         this.errorMessage = ''
-        
+
         if (this.isLogin) {
-          // Для входа используем данные из формы
           const loginResult = await loginUser(
             this.formData.email,
             this.formData.password,
             twoFactorData.code
           )
           console.log('Вход выполнен:', loginResult)
-          
-          // Сохраняем токен
+
           if (loginResult.token) {
             setAuthToken(loginResult.token)
+            setUserCredentials(this.formData.email, this.formData.password)
+          } else if (loginResult.accessToken) {
+            setAuthToken(loginResult.accessToken)
+            setUserCredentials(this.formData.email, this.formData.password)
+          } else if (loginResult.access_token) {
+            setAuthToken(loginResult.access_token)
+            setUserCredentials(this.formData.email, this.formData.password)
           }
         } else {
-          // Для регистрации верифицируем 2FA
           const verifyResult = await verifyTwoFactorAuth(twoFactorData.code)
           console.log('2FA верифицирован:', verifyResult)
-          
-          // Сохраняем токен если есть
+
           if (verifyResult.token) {
             setAuthToken(verifyResult.token)
+          } else if (verifyResult.accessToken) {
+            setAuthToken(verifyResult.accessToken)
+          } else if (verifyResult.access_token) {
+            setAuthToken(verifyResult.access_token)
           }
         }
-        
-        // Успешная аутентификация
+
         console.log('Аутентификация завершена успешно!')
         this.showSuccess = true
         this.showTwoFactor = false
-        
+
+        this.$emit('auth-success')
+
       } catch (error) {
         console.error('Ошибка 2FA:', error)
         this.errorMessage = error.message || 'Ошибка верификации 2FA'
@@ -182,11 +196,41 @@ export default {
         this.isLoading = false
       }
     },
+    async handleAutoLogin() {
+      try {
+        const credentials = getUserCredentials()
+
+        if (!credentials.email || !credentials.password) {
+          console.log('Нет сохраненных данных пользователя')
+          setAuthToken(null)
+          return
+        }
+
+        const userInfo = await validateToken(credentials.email, credentials.password, '000000')
+        console.log('Токен валиден, информация о пользователе:', userInfo)
+
+        this.formData = {
+          email: credentials.email,
+          password: ''
+        }
+
+        this.showSuccess = true
+        this.showTwoFactor = false
+        this.isLogin = true
+
+        console.log('Автоматический вход выполнен')
+      } catch (error) {
+        console.error('Ошибка автоматического входа:', error)
+        setAuthToken(null)
+        setUserCredentials(null, null)
+        this.showSuccess = false
+        this.showTwoFactor = false
+        this.isLogin = true
+      }
+    },
     handleLogout() {
-      // Очищаем токен
       setAuthToken(null)
-      
-      // Сбрасываем состояние
+      setUserCredentials(null, null)
       this.showSuccess = false
       this.showTwoFactor = false
       this.isLogin = true
@@ -195,7 +239,7 @@ export default {
         email: '',
         password: ''
       }
-      
+
       console.log('Пользователь вышел из системы')
     }
   }
@@ -212,10 +256,6 @@ export default {
   display: flex;
   flex-direction: column;
 }
-
-
-
-
 
 .logo {
   position: absolute;
@@ -249,7 +289,7 @@ export default {
 }
 
 .auth-container {
-    pointer-events: none;
+  pointer-events: none;
   flex: 1;
   display: flex;
   align-items: center;
@@ -260,7 +300,7 @@ export default {
 }
 
 .auth-card {
-    pointer-events: all;
+  pointer-events: all;
   background: rgba(26, 26, 46, 0.2);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(45, 45, 68, 0.5);
@@ -273,30 +313,29 @@ export default {
   z-index: 2;
 }
 
-/* Медиа запросы */
 @media (max-width: 768px) {
   .logo {
     top: 20px;
     left: 20px;
   }
-  
+
   .logo-icon {
     width: 36px;
     height: 36px;
   }
-  
+
   .logo-icon i {
     font-size: 18px;
   }
-  
+
   .logo-text {
     font-size: 18px;
   }
-  
+
   .auth-container {
     padding: 16px;
   }
-  
+
   .auth-card {
     padding: 32px 24px;
     border-radius: 16px;
@@ -308,36 +347,65 @@ export default {
     top: 16px;
     left: 16px;
   }
-  
+
   .logo-icon {
     width: 32px;
     height: 32px;
   }
-  
+
   .logo-icon i {
     font-size: 16px;
   }
-  
+
   .logo-text {
     font-size: 16px;
   }
-  
+
   .auth-container {
     padding: 12px;
   }
-  
+
   .auth-card {
     padding: 24px 20px;
     border-radius: 12px;
   }
 }
 
-/* Анимации */
+@media (max-width: 360px) {
+  .logo {
+    top: 12px;
+    left: 12px;
+  }
+
+  .logo-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .logo-icon i {
+    font-size: 14px;
+  }
+
+  .logo-text {
+    font-size: 14px;
+  }
+
+  .auth-container {
+    padding: 8px;
+  }
+
+  .auth-card {
+    padding: 20px 16px;
+    border-radius: 10px;
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -349,7 +417,6 @@ export default {
   position: relative;
 }
 
-/* Error Message */
 .error-message {
   background: rgba(220, 53, 69, 0.1);
   border: 1px solid rgba(220, 53, 69, 0.3);
@@ -367,7 +434,6 @@ export default {
   font-size: 16px;
 }
 
-/* Loading Overlay */
 .loading-overlay {
   position: absolute;
   top: 0;

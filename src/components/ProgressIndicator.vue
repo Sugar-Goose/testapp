@@ -108,7 +108,6 @@ export default {
   z-index: 1;
 }
 
-/* Медиа запросы */
 @media (max-width: 768px) {
   .step-icon {
     width: 28px;

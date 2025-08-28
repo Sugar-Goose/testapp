@@ -39,9 +39,6 @@
 </template>
 
 <script>
-// eslint-disable-next-line no-unused-vars
-import { getAuthToken } from '../api.js'
-
 export default {
   name: 'AuthSuccess',
   props: {
@@ -50,12 +47,10 @@ export default {
       required: true
     }
   },
-  emits: ['logout'],
+  emits: ['logout', 'auth-success'],
   methods: {
     goToDashboard() {
-      // Здесь можно добавить навигацию к дашборду
-      console.log('Переход к дашборду')
-      // this.$router.push('/dashboard')
+      this.$emit('auth-success')
     },
     logout() {
       this.$emit('logout')
@@ -216,24 +211,24 @@ export default {
     width: 56px;
     height: 56px;
   }
-  
+
   .success-icon i {
     font-size: 28px;
   }
-  
+
   .success-title {
     font-size: 20px;
   }
-  
+
   .user-info {
     padding: 16px;
   }
-  
+
   .user-avatar {
     width: 40px;
     height: 40px;
   }
-  
+
   .user-avatar i {
     font-size: 18px;
   }
@@ -243,7 +238,7 @@ export default {
   .action-buttons {
     flex-direction: column;
   }
-  
+
   .dashboard-button,
   .logout-button {
     padding: 12px 20px;

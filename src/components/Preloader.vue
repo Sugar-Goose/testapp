@@ -7,13 +7,13 @@
         </div>
         <span class="logo-text">Savage Investor</span>
       </div>
-      
+
       <div class="loading-spinner">
         <div class="spinner-ring"></div>
         <div class="spinner-ring"></div>
         <div class="spinner-ring"></div>
       </div>
-      
+
       <div class="loading-text">
         <span>Loading</span>
         <span class="dots">
@@ -35,10 +35,8 @@ export default {
     }
   },
   mounted() {
-    // Запускаем анимацию исчезновения через 1 секунду
     setTimeout(() => {
       this.isFadingOut = true
-      // Удаляем прелоадер из DOM через 0.5 секунды
       setTimeout(() => {
         this.$emit('preloader-complete')
       }, 500)
@@ -163,52 +161,63 @@ export default {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { 
+
+  0%,
+  100% {
     transform: scale(1);
     box-shadow: 0 0 0 0 rgba(110, 92, 247, 0.7);
   }
-  50% { 
+
+  50% {
     transform: scale(1.05);
     box-shadow: 0 0 0 10px rgba(110, 92, 247, 0);
   }
 }
 
 @keyframes dotPulse {
-  0%, 80%, 100% {
+
+  0%,
+  80%,
+  100% {
     opacity: 0.3;
     transform: scale(0.8);
   }
+
   40% {
     opacity: 1;
     transform: scale(1);
   }
 }
 
-/* Медиа запросы */
 @media (max-width: 768px) {
   .logo-icon {
     width: 40px;
     height: 40px;
   }
-  
+
   .logo-icon i {
     font-size: 20px;
   }
-  
+
   .logo-text {
     font-size: 24px;
   }
-  
+
   .loading-spinner {
     width: 50px;
     height: 50px;
   }
-  
+
   .loading-text {
     font-size: 14px;
   }
@@ -219,20 +228,20 @@ export default {
     width: 36px;
     height: 36px;
   }
-  
+
   .logo-icon i {
     font-size: 18px;
   }
-  
+
   .logo-text {
     font-size: 20px;
   }
-  
+
   .loading-spinner {
     width: 40px;
     height: 40px;
   }
-  
+
   .loading-text {
     font-size: 13px;
   }

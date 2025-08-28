@@ -1,26 +1,18 @@
 <template>
   <div class="input-field">
     <label :for="id" class="input-label">{{ label }}</label>
-    <div class="input-container" :class="{ 'error': hasError, 'focused': isFocused }">
+    <div class="input-container" :class="{ 'error': !!hasError, 'focused': isFocused }">
       <div class="input-icon" v-if="icon">
         <i :class="icon"></i>
       </div>
-      <input
-        :id="id"
-        :type="inputType"
-        :value="modelValue"
-        @input="$emit('update:modelValue', $event.target.value)"
-        @focus="isFocused = true"
-        @blur="isFocused = false"
-        :placeholder="placeholder"
-        class="input-element"
-        :class="{ 'has-icon': icon }"
-      />
+      <input :id="id" :type="inputType" :value="modelValue" @input="$emit('update:modelValue', $event.target.value)"
+        @focus="isFocused = true" @blur="handleBlur" :placeholder="placeholder" class="input-element"
+        :class="{ 'has-icon': icon }" />
       <div class="input-action" v-if="actionIcon" @click="$emit('action')">
         <i :class="actionIcon"></i>
       </div>
     </div>
-    <div class="error-message" v-if="hasError">{{ errorMessage }}</div>
+    <div class="error-message" v-if="!!hasError">{{ errorMessage }}</div>
   </div>
 </template>
 
@@ -57,7 +49,7 @@ export default {
       default: ''
     },
     hasError: {
-      type: Boolean,
+      type: [Boolean, String],
       default: false
     },
     errorMessage: {
@@ -69,7 +61,7 @@ export default {
       default: false
     }
   },
-  emits: ['update:modelValue', 'action'],
+  emits: ['update:modelValue', 'action', 'blur'],
   data() {
     return {
       isFocused: false
@@ -81,6 +73,12 @@ export default {
         return 'text'
       }
       return this.type
+    }
+  },
+  methods: {
+    handleBlur() {
+      this.isFocused = false
+      this.$emit('blur')
     }
   }
 }
@@ -181,12 +179,12 @@ export default {
   .input-container {
     border-radius: 10px;
   }
-  
+
   .input-element {
     font-size: 16px;
     padding: 12px 14px;
   }
-  
+
   .input-icon,
   .input-action {
     width: 44px;
@@ -198,12 +196,12 @@ export default {
   .input-label {
     font-size: 13px;
   }
-  
+
   .input-element {
     font-size: 16px;
     padding: 10px 12px;
   }
-  
+
   .input-icon,
   .input-action {
     width: 40px;
