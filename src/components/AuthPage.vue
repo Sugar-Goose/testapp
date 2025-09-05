@@ -22,8 +22,11 @@
           </div>
         </div>
 
-        <AuthForm v-if="!showTwoFactor && !showSuccess" :is-login="isLogin" @submit="handleAuthSubmit"
+        <AuthForm v-if="!showTwoFactor && !showEmailVerification && !showSuccess" :is-login="isLogin" @submit="handleAuthSubmit"
           @mode-change="toggleAuthMode" />
+
+        <EmailVerification v-else-if="showEmailVerification && !showSuccess" :email="formData.email"
+          @verify="handleEmailVerification" @cancel="showEmailVerification = false" />
 
         <TwoFactorAuth v-else-if="showTwoFactor && !showSuccess" :secret-code="twoFactorSecret"
           :qr-code="twoFactorQrCode" :otpauth-url="twoFactorOtpauthUrl" :is-login="isLogin"
@@ -42,6 +45,7 @@
 import AuthForm from './AuthForm.vue'
 import TwoFactorAuth from './TwoFactorAuth.vue'
 import AuthSuccess from './AuthSuccess.vue'
+import EmailVerification from './EmailVerification.vue'
 import SplineComp from './SplineComp.vue'
 import {
   registerUser,
@@ -61,12 +65,14 @@ export default {
     AuthForm,
     TwoFactorAuth,
     AuthSuccess,
+    EmailVerification,
     SplineComp
   },
   data() {
     return {
       isLogin: true,
       showTwoFactor: false,
+      showEmailVerification: false,
       showSuccess: false,
       twoFactorSecret: '',
       twoFactorQrCode: '',
@@ -83,6 +89,7 @@ export default {
     toggleAuthMode() {
       this.isLogin = !this.isLogin
       this.showTwoFactor = false
+      this.showEmailVerification = false
       this.errorMessage = ''
     },
     async handleAuthSubmit(authData) {
@@ -101,52 +108,185 @@ export default {
             authData.data.password
           )
           console.log('Регистрация успешна:', registerResult)
-          console.log('Тип ответа:', typeof registerResult)
-          console.log('Ключи ответа:', Object.keys(registerResult))
-
-          console.log('Выполняем вход после регистрации...')
-          const loginResult = await loginUser(
-            authData.data.email,
-            authData.data.password,
-            '000000' // Временный код 2FA для первого входа
-          )
-          console.log('Вход после регистрации:', loginResult)
-
-          if (loginResult.token) {
-            setAuthToken(loginResult.token)
-            setUserCredentials(authData.data.email, authData.data.password)
-            console.log('Токен сохранен после входа:', loginResult.token)
-          } else if (loginResult.accessToken) {
-            setAuthToken(loginResult.accessToken)
-            setUserCredentials(authData.data.email, authData.data.password)
-            console.log('Access token сохранен после входа:', loginResult.accessToken)
-          } else if (loginResult.access_token) {
-            setAuthToken(loginResult.access_token)
-            setUserCredentials(authData.data.email, authData.data.password)
-            console.log('Access token сохранен после входа:', loginResult.access_token)
-          } else {
-            console.log('Токен не найден в ответе входа:', loginResult)
+          
+          console.log('Пытаемся войти в систему после регистрации...')
+          try {
+            const loginResult = await loginUser(
+              authData.data.email,
+              authData.data.password
+            )
+            console.log('Вход после регистрации:', loginResult)
+            
+            console.log('📧 Требуется верификация входа после регистрации')
+            this.showEmailVerification = true
+          } catch (loginError) {
+            console.error('Ошибка входа после регистрации:', loginError)
+            this.errorMessage = 'Ошибка входа после регистрации'
           }
-
-          const currentToken = getAuthToken()
-          console.log('Текущий токен перед 2FA:', currentToken)
-
-          const twoFactorResult = await setupTwoFactorAuth()
-          console.log('2FA настройка:', twoFactorResult)
-
-          this.twoFactorSecret = twoFactorResult.secret || 'T7AL C2KD ONB5 TWL2 WHPM GNUQ 65UZ WKJB'
-          this.twoFactorQrCode = twoFactorResult.qrCode || ''
-          this.twoFactorOtpauthUrl = twoFactorResult.otpauthUrl || ''
-
-          this.showTwoFactor = true
         }
       } catch (error) {
         console.error('Ошибка аутентификации:', error)
-        this.errorMessage = error.message || 'Произошла ошибка при аутентификации'
+        
+        if (error.message.includes('SyntaxError')) {
+          this.errorMessage = 'Ошибка обработки ответа сервера. Попробуйте снова.'
+        } else if (error.message.includes('401')) {
+          this.errorMessage = 'Неверные учетные данные.'
+        } else if (error.message.includes('400')) {
+          this.errorMessage = 'Неверные данные. Проверьте введенную информацию.'
+        } else if (error.message.includes('500')) {
+          this.errorMessage = 'Ошибка сервера. Попробуйте позже.'
+        } else {
+          this.errorMessage = error.message || 'Произошла ошибка при аутентификации'
+        }
       } finally {
         this.isLoading = false
       }
     },
+    
+    async proceedToTwoFactor(email, password) {
+      try {
+        const currentToken = getAuthToken()
+        console.log('Текущий токен перед 2FA:', currentToken)
+        console.log('Email для 2FA:', email)
+        console.log('Password для 2FA:', password ? '***' : 'null')
+        if (!currentToken) {
+          console.log('Выполняем вход после регистрации...')
+          const loginResult = await loginUser(
+            email,
+            password,
+            '000000'
+          )
+          console.log('Вход после регистрации:', loginResult)
+
+          let tokenToSave = null
+          if (loginResult.token) {
+            tokenToSave = loginResult.token
+          } else if (loginResult.accessToken) {
+            tokenToSave = loginResult.accessToken
+          } else if (loginResult.access_token) {
+            tokenToSave = loginResult.access_token
+          }
+
+          if (tokenToSave) {
+            setAuthToken(tokenToSave)
+            setUserCredentials(email, password)
+            console.log('Токен сохранен после входа:', tokenToSave.substring(0, 20) + '...')
+            
+            const savedToken = getAuthToken()
+            if (savedToken === tokenToSave) {
+              console.log('✅ Токен успешно сохранен и проверен')
+            } else {
+              console.error('❌ Ошибка сохранения токена')
+            }
+          } else {
+            console.log('Токен не найден в ответе входа:', loginResult)
+          }
+        }
+
+        const twoFactorResult = await setupTwoFactorAuth()
+        console.log('2FA настройка:', twoFactorResult)
+        console.log('Тип результата 2FA:', typeof twoFactorResult)
+        console.log('Ключи результата 2FA:', twoFactorResult ? Object.keys(twoFactorResult) : 'null')
+
+        this.twoFactorSecret = twoFactorResult.secret || 'T7AL C2KD ONB5 TWL2 WHPM GNUQ 65UZ WKJB'
+        this.twoFactorQrCode = twoFactorResult.qrCode || ''
+        this.twoFactorOtpauthUrl = twoFactorResult.otpauthUrl || ''
+
+        console.log('Устанавливаем showTwoFactor = true')
+        console.log('Текущее состояние showEmailVerification:', this.showEmailVerification)
+        this.showEmailVerification = false
+        this.showTwoFactor = true
+        console.log('После установки showTwoFactor:', this.showTwoFactor)
+        console.log('После установки showEmailVerification:', this.showEmailVerification)
+      } catch (error) {
+        console.error('Ошибка при переходе к 2FA:', error)
+        this.errorMessage = error.message || 'Ошибка при настройке 2FA'
+      }
+    },
+    
+    async handleEmailVerification(verificationData) {
+      try {
+        this.isLoading = true
+        this.errorMessage = ''
+        
+        console.log('🔍 Верификация входа:', verificationData)
+        console.log('🔍 Тип verificationData:', typeof verificationData)
+        console.log('🔍 Ключи verificationData:', Object.keys(verificationData))
+        
+        // Проверяем, есть ли токен в результате верификации
+        const verificationResult = verificationData.result
+        console.log('🔍 Результат верификации:', verificationResult)
+        console.log('🔍 Тип результата:', typeof verificationResult)
+        console.log('🔍 Ключи результата:', verificationResult ? Object.keys(verificationResult) : 'null')
+        
+        let tokenToSave = null
+        if (verificationResult.token) {
+          tokenToSave = verificationResult.token
+        } else if (verificationResult.accessToken) {
+          tokenToSave = verificationResult.accessToken
+        } else if (verificationResult.access_token) {
+          tokenToSave = verificationResult.access_token
+        }
+
+        if (tokenToSave) {
+          setAuthToken(tokenToSave)
+          setUserCredentials(this.formData.email, this.formData.password)
+          console.log('Токен сохранен после верификации:', tokenToSave.substring(0, 20) + '...')
+          
+          // Проверяем, что токен действительно сохранился
+          const savedToken = getAuthToken()
+          if (savedToken === tokenToSave) {
+            console.log('✅ Токен успешно сохранен и проверен')
+          } else {
+            console.error('❌ Ошибка сохранения токена')
+          }
+          
+          // Переходим к настройке 2FA
+          await this.proceedToTwoFactor(this.formData.email, this.formData.password)
+        } else {
+          console.log('Токен не найден в результате верификации:', verificationResult)
+          // Если токена нет, пытаемся войти в систему
+          try {
+            const loginResult = await loginUser(
+              this.formData.email,
+              this.formData.password
+            )
+            console.log('Вход после верификации:', loginResult)
+
+            let loginTokenToSave = null
+            if (loginResult.token) {
+              loginTokenToSave = loginResult.token
+            } else if (loginResult.accessToken) {
+              loginTokenToSave = loginResult.accessToken
+            } else if (loginResult.access_token) {
+              loginTokenToSave = loginResult.access_token
+            }
+
+            if (loginTokenToSave) {
+              setAuthToken(loginTokenToSave)
+              setUserCredentials(this.formData.email, this.formData.password)
+              console.log('Токен сохранен после входа:', loginTokenToSave.substring(0, 20) + '...')
+              
+              // Переходим к настройке 2FA
+              await this.proceedToTwoFactor(this.formData.email, this.formData.password)
+            } else {
+              console.log('Токен не найден в ответе входа:', loginResult)
+              this.errorMessage = 'Ошибка получения токена после верификации'
+            }
+          } catch (loginError) {
+            console.error('Ошибка входа после верификации:', loginError)
+            this.errorMessage = 'Ошибка входа после верификации'
+          }
+        }
+        
+      } catch (error) {
+        console.error('Ошибка верификации входа:', error)
+        this.errorMessage = error.message || 'Ошибка верификации входа'
+      } finally {
+        this.isLoading = false
+      }
+    },
+    
     async handleTwoFactorVerify(twoFactorData) {
       try {
         this.isLoading = true
@@ -160,26 +300,66 @@ export default {
           )
           console.log('Вход выполнен:', loginResult)
 
+          let tokenToSave = null
           if (loginResult.token) {
-            setAuthToken(loginResult.token)
-            setUserCredentials(this.formData.email, this.formData.password)
+            tokenToSave = loginResult.token
           } else if (loginResult.accessToken) {
-            setAuthToken(loginResult.accessToken)
-            setUserCredentials(this.formData.email, this.formData.password)
+            tokenToSave = loginResult.accessToken
           } else if (loginResult.access_token) {
-            setAuthToken(loginResult.access_token)
+            tokenToSave = loginResult.access_token
+          }
+
+          if (tokenToSave) {
+            setAuthToken(tokenToSave)
             setUserCredentials(this.formData.email, this.formData.password)
+            console.log('Токен сохранен в localStorage:', tokenToSave.substring(0, 20) + '...')
+            
+            const savedToken = getAuthToken()
+            if (savedToken === tokenToSave) {
+              console.log('✅ Токен успешно сохранен и проверен')
+            } else {
+              console.error('❌ Ошибка сохранения токена')
+              throw new Error('Ошибка сохранения токена авторизации')
+            }
+          } else {
+            console.error('Токен не найден в ответе сервера:', loginResult)
+            throw new Error('Токен авторизации не получен от сервера')
           }
         } else {
           const verifyResult = await verifyTwoFactorAuth(twoFactorData.code)
-          console.log('2FA верифицирован:', verifyResult)
+          console.log('🔍 2FA верифицирован:', verifyResult)
+          console.log('🔍 Тип результата 2FA verify:', typeof verifyResult)
+          console.log('🔍 Ключи результата 2FA verify:', verifyResult ? Object.keys(verifyResult) : 'null')
 
+          let tokenToSave = null
           if (verifyResult.token) {
-            setAuthToken(verifyResult.token)
+            tokenToSave = verifyResult.token
           } else if (verifyResult.accessToken) {
-            setAuthToken(verifyResult.accessToken)
+            tokenToSave = verifyResult.accessToken
           } else if (verifyResult.access_token) {
-            setAuthToken(verifyResult.access_token)
+            tokenToSave = verifyResult.access_token
+          }
+
+          if (tokenToSave) {
+            setAuthToken(tokenToSave)
+            console.log('Токен сохранен в localStorage:', tokenToSave.substring(0, 20) + '...')
+            
+            const savedToken = getAuthToken()
+            if (savedToken === tokenToSave) {
+              console.log('✅ Токен успешно сохранен и проверен')
+            } else {
+              console.error('❌ Ошибка сохранения токена')
+              throw new Error('Ошибка сохранения токена авторизации')
+            }
+          } else {
+            console.log('🔍 Токен не найден в ответе сервера, проверяем существующий токен')
+            const existingToken = getAuthToken()
+            if (existingToken) {
+              console.log('✅ Используем существующий токен:', existingToken.substring(0, 20) + '...')
+            } else {
+              console.error('❌ Нет токена в ответе и нет существующего токена')
+              throw new Error('Токен авторизации не найден')
+            }
           }
         }
 
@@ -191,7 +371,19 @@ export default {
 
       } catch (error) {
         console.error('Ошибка 2FA:', error)
-        this.errorMessage = error.message || 'Ошибка верификации 2FA'
+        
+        // Улучшенная обработка ошибок 2FA
+        if (error.message.includes('SyntaxError')) {
+          this.errorMessage = 'Ошибка обработки ответа сервера. Попробуйте снова.'
+        } else if (error.message.includes('401')) {
+          this.errorMessage = 'Неверный код 2FA или учетные данные.'
+        } else if (error.message.includes('400')) {
+          this.errorMessage = 'Неверный код 2FA. Проверьте код и попробуйте снова.'
+        } else if (error.message.includes('500')) {
+          this.errorMessage = 'Ошибка сервера. Попробуйте позже.'
+        } else {
+          this.errorMessage = error.message || 'Ошибка верификации 2FA'
+        }
       } finally {
         this.isLoading = false
       }
@@ -233,6 +425,7 @@ export default {
       setUserCredentials(null, null)
       this.showSuccess = false
       this.showTwoFactor = false
+      this.showEmailVerification = false
       this.isLogin = true
       this.errorMessage = ''
       this.formData = {

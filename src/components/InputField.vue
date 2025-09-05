@@ -174,7 +174,6 @@ export default {
   margin-left: 4px;
 }
 
-/* Медиа запросы */
 @media (max-width: 768px) {
   .input-container {
     border-radius: 10px;

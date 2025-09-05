@@ -14,6 +14,7 @@ export default {
     }
   },
   async mounted() {
+    // Загрузка 3D сцены и настройка отслеживания мыши
     await this.loadSpline()
     this.setupMouseTracking()
   },
@@ -25,6 +26,7 @@ export default {
   },
   methods: {
     async loadSpline() {
+      // Загрузка 3D сцены из Spline
       try {
         const { Application } = await import('@splinetool/runtime')
         this.splineApp = new Application(this.$refs.canvas3d)

@@ -28,6 +28,14 @@
       </div>
 
       <div class="features-grid">
+        <div class="feature-card" @click="goToProjects">
+          <div class="feature-icon">
+            <i class="fas fa-building"></i>
+          </div>
+          <h3>Проекты</h3>
+          <p>Инвестируйте в различные проекты и получайте прибыль</p>
+        </div>
+
         <div class="feature-card">
           <div class="feature-icon">
             <i class="fas fa-chart-bar"></i>
@@ -61,6 +69,7 @@
         </div>
       </div>
     </main>
+    
   </div>
 </template>
 
@@ -69,6 +78,8 @@ import { getUserCredentials, setAuthToken, setUserCredentials } from '../service
 
 export default {
   name: 'MainApp',
+  components: {
+  },
   data() {
     return {
       userEmail: ''
@@ -79,6 +90,10 @@ export default {
     this.userEmail = credentials.email || 'Пользователь'
   },
   methods: {
+    goToProjects() {
+      this.$emit('navigate', 'projects')
+    },
+    
     handleLogout() {
       setAuthToken(null)
       setUserCredentials(null, null)
@@ -233,6 +248,7 @@ export default {
   padding: 32px 24px;
   text-align: center;
   transition: all 0.3s ease;
+  cursor: pointer;
 }
 
 .feature-card:hover {

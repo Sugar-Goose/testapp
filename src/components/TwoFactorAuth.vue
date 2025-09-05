@@ -107,6 +107,7 @@ export default {
     }
   },
   mounted() {
+    // Инициализация компонента 2FA
     console.log('TwoFactorAuth mounted with props:', {
       secretCode: this.secretCode,
       qrCode: this.qrCode ? 'QR Code received' : 'No QR Code',

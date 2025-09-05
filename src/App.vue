@@ -2,7 +2,8 @@
   <div id="app">
     <AppPreloader v-if="showPreloader" @preloader-complete="hidePreloader" />
     <AuthPage v-show="!showPreloader && !isAuthenticated" @auth-success="handleAuthSuccess" />
-    <MainApp v-show="!showPreloader && isAuthenticated" @logout="handleLogout" />
+    <MainApp v-show="!showPreloader && isAuthenticated && currentPage === 'dashboard'" @logout="handleLogout" @navigate="handleNavigate" />
+    <ProjectsPage v-show="!showPreloader && isAuthenticated && currentPage === 'projects'" @logout="handleLogout" @navigate="handleNavigate" />
   </div>
 </template>
 
@@ -10,6 +11,7 @@
 import AuthPage from './components/AuthPage.vue'
 import AppPreloader from './components/Preloader.vue'
 import MainApp from './components/MainApp.vue'
+import ProjectsPage from './components/ProjectsPage.vue'
 import { getAuthToken } from './services/api.js'
 
 export default {
@@ -17,12 +19,14 @@ export default {
   components: {
     AuthPage,
     AppPreloader,
-    MainApp
+    MainApp,
+    ProjectsPage
   },
   data() {
     return {
       showPreloader: true,
-      isAuthenticated: false
+      isAuthenticated: false,
+      currentPage: 'dashboard' // dashboard | projects
     }
   },
       async mounted() {
@@ -35,7 +39,13 @@ export default {
     async checkAuthentication() {
       const token = getAuthToken()
       this.isAuthenticated = !!token
-      console.log(this.isAuthenticated ? 'Авторизован' : 'Не авторизован')
+      if (this.isAuthenticated) {
+        console.log('Пользователь авторизован, токен найден:', token.substring(0, 20) + '...')
+        this.currentPage = 'dashboard'
+      } else {
+        console.log('Пользователь не авторизован, токен не найден')
+        this.currentPage = 'dashboard'
+      }
     },
     handleLogout() {
       this.isAuthenticated = false
@@ -43,6 +53,12 @@ export default {
     },
     handleAuthSuccess() {
       this.isAuthenticated = true
+      this.currentPage = 'dashboard'
+      console.log('Аутентификация успешна, переходим на главную страницу')
+    },
+    
+    handleNavigate(page) {
+      this.currentPage = page
     }
   }
 }

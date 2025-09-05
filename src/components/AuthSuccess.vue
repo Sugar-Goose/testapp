@@ -205,7 +205,6 @@ export default {
   background: #3d3d54;
 }
 
-/* Медиа запросы */
 @media (max-width: 768px) {
   .success-icon {
     width: 56px;

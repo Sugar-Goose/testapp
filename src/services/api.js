@@ -1,5 +1,7 @@
+// Базовый URL API
 const API_BASE_URL = 'https://api.ic.savagealphas.com/';
 
+// Универсальная функция для API запросов
 async function makeRequest(endpoint, options = {}) {
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
     const url = `${API_BASE_URL}${cleanEndpoint}`;
@@ -28,8 +30,25 @@ async function makeRequest(endpoint, options = {}) {
             throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
 
-        const data = await response.json();
-        console.log('Response data:', data);
+        const contentType = response.headers.get('content-type');
+
+        let data;
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            const textData = await response.text();
+            
+            try {
+                data = JSON.parse(textData);
+            } catch (parseError) {
+                data = {
+                    message: textData,
+                    success: true,
+                    statusCode: response.status
+                };
+            }
+        }
+
         return data;
     } catch (error) {
         console.error('API request failed:', error);
@@ -37,12 +56,23 @@ async function makeRequest(endpoint, options = {}) {
     }
 }
 
-export async function registerUser(email, password) {
+export async function registerUser(email, password, referralCode = '') {
     return makeRequest('/auth/register', {
         method: 'POST',
         body: JSON.stringify({
             email,
-            password
+            password,
+            referralCode
+        })
+    });
+}
+
+export async function verifyLogin(email, verificationCode) {
+    return makeRequest('/auth/verify-login', {
+        method: 'POST',
+        body: JSON.stringify({
+            email,
+            verificationCode
         })
     });
 }
@@ -62,22 +92,33 @@ export async function verifyTwoFactorAuth(token) {
     });
 }
 
-export async function loginUser(email, password, twoFactorCode) {
+export async function loginUser(email, password, twoFactorCode = null) {
+    const body = {
+        email,
+        password
+    };
+    
+    if (twoFactorCode) {
+        body.twoFactorCode = twoFactorCode;
+    }
+    
     return makeRequest('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({
-            email,
-            password,
-            twoFactorCode
-        })
+        body: JSON.stringify(body)
     });
 }
 
+
 export function setAuthToken(token) {
-    if (token) {
-        localStorage.setItem('authToken', token);
-    } else {
-        localStorage.removeItem('authToken');
+    try {
+        if (token) {
+            localStorage.setItem('authToken', token);
+        } else {
+            localStorage.removeItem('authToken');
+        }
+    } catch (error) {
+        console.error('Ошибка при работе с localStorage:', error);
+        throw new Error('Не удалось сохранить токен авторизации');
     }
 }
 
@@ -98,9 +139,15 @@ export function getUserCredentials() {
 }
 
 export function getAuthToken() {
-    return localStorage.getItem('authToken');
+    try {
+        return localStorage.getItem('authToken');
+    } catch (error) {
+        console.error('Ошибка при чтении из localStorage:', error);
+        return null;
+    }
 }
 
+// Запросы с авторизацией
 export async function makeAuthenticatedRequest(endpoint, options = {}) {
     const token = getAuthToken();
 
@@ -126,7 +173,6 @@ export async function validateToken(email, password, twoFactorCode) {
         if (result.token || result.accessToken || result.access_token) {
             const newToken = result.token || result.accessToken || result.access_token;
             setAuthToken(newToken);
-            console.log('Токен обновлен:', newToken);
         }
 
         return result;
@@ -138,17 +184,70 @@ export async function validateToken(email, password, twoFactorCode) {
 
 export async function validateTokenStored() {
     const token = getAuthToken();
-    if (token) {
-        console.log('Токен найден в localStorage:', token.substring(0, 20) + '...');
-        return true;
-    } else {
-        console.log('Токен не найден в localStorage');
-        return false;
-    }
+    return !!token;
+}
+
+export async function getProjects() {
+    return makeAuthenticatedRequest('/projects', {
+        method: 'GET',
+        headers: {
+            'accept': 'application/json'
+        }
+    });
+}
+
+export async function getProjectPlans(projectId) {
+    return makeAuthenticatedRequest(`/projects/${projectId}/plans`, {
+        method: 'GET',
+        headers: {
+            'accept': 'application/json'
+        }
+    });
+}
+
+export async function getUserInvestments() {
+    return makeAuthenticatedRequest('/investments', {
+        method: 'GET',
+        headers: {
+            'accept': 'application/json'
+        }
+    });
+}
+
+export async function createInvestmentIntent(projectId, planId, expectedAmount) {
+    return makeAuthenticatedRequest('/investments/intents', {
+        method: 'POST',
+        body: JSON.stringify({
+            projectId,
+            planId,
+            expectedAmount
+        })
+    });
+}
+
+export async function createWithdrawalRequest(userInvestmentId, amount, wallet) {
+    return makeAuthenticatedRequest('/investments/withdrawals', {
+        method: 'POST',
+        body: JSON.stringify({
+            userInvestmentId,
+            amount,
+            wallet
+        })
+    });
+}
+
+export async function getWithdrawalDetails(investmentId) {
+    return makeAuthenticatedRequest(`/investments/${investmentId}/withdrawals/details`, {
+        method: 'GET',
+        headers: {
+            'accept': '*/*'
+        }
+    });
 }
 
 export default {
     registerUser,
+    verifyLogin,
     setupTwoFactorAuth,
     verifyTwoFactorAuth,
     loginUser,
@@ -158,5 +257,11 @@ export default {
     getUserCredentials,
     makeAuthenticatedRequest,
     validateToken,
-    validateTokenStored
+    validateTokenStored,
+    getProjects,
+    getProjectPlans,
+    getUserInvestments,
+    createInvestmentIntent,
+    createWithdrawalRequest,
+    getWithdrawalDetails
 };
